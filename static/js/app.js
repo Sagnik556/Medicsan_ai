@@ -31,6 +31,8 @@ const copyBtn = document.getElementById("copyBtn");
 const favBtn = document.getElementById("favBtn");
 const pdfBtn = document.getElementById("pdfBtn");
 const shareBtn = document.getElementById("shareBtn");
+const substitutesBox = document.getElementById("substitutesBox");
+const substitutesList = document.getElementById("substitutesList");
 
 // Clear history button exists in HTML
 const clearHistoryBtn = document.getElementById("clearHistoryBtn");
@@ -85,7 +87,7 @@ function renderList(listEl, items) {
 }
 
 function buildCopyText(medName, med, src) {
-  return `
+  let txt = `
 MediScan AI Report
 -----------------------
 Medicine: ${medName}
@@ -103,10 +105,16 @@ Side Effects:
 - ${(med.side_effects || []).join("\n- ")}
 
 Warnings:
-- ${(med.warnings || []).join("\n- ")}
+- ${(med.warnings || []).join("\n- ")}`;
 
-Disclaimer: Educational only. Consult a doctor.
-`.trim();
+  const subs = med.generic_substitutes || [];
+  if (subs.length > 0) {
+    txt += `\n\nAffordable Generic Substitutes:\n`;
+    subs.forEach(s => { txt += `- ${s.name} (Match: ${s.active_ingredient_match}%)\n`; });
+  }
+
+  txt += `\n\nDisclaimer: Educational only. Consult a doctor.`;
+  return txt.trim();
 }
 
 // ============================
@@ -240,6 +248,21 @@ async function fetchMedicine() {
       `Use: ${med.use} ` +
       `Side effects: ${(med.side_effects || []).slice(0, 2).join(", ")}. ` +
       `Warnings: consult a doctor if unsure.`;
+
+    // Generic Substitutes
+    const subs = med.generic_substitutes || [];
+    substitutesList.innerHTML = "";
+    if (subs.length > 0) {
+      subs.forEach(s => {
+        const chip = document.createElement("div");
+        chip.className = "sub-chip";
+        chip.innerHTML = `<span>${s.name}</span><span class="match-badge">${s.active_ingredient_match}% match</span>`;
+        substitutesList.appendChild(chip);
+      });
+      substitutesBox.classList.remove("hidden");
+    } else {
+      substitutesBox.classList.add("hidden");
+    }
 
     // ✅ COPY
     copyBtn.onclick = async () => {
@@ -384,6 +407,7 @@ input.addEventListener("keydown", (e) => {
 clearBtn.addEventListener("click", () => {
   input.value = "";
   resultBox.classList.add("hidden");
+  substitutesBox.classList.add("hidden");
   setStatus("✅ Cleared.");
 });
 

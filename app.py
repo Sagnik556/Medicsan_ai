@@ -84,6 +84,7 @@ Rules:
 - Do NOT provide diagnosis, exact prescriptions, or emergency instructions.
 - Dosage must be general, safe, and non-prescriptive.
 - Always include warnings and suggest consulting a doctor.
+- For generic_substitutes, list widely available low-cost generic equivalents with the same active ingredient. Use an empty array [] if none exist.
 
 Return STRICT JSON only in this schema:
 
@@ -92,7 +93,10 @@ Return STRICT JSON only in this schema:
   "use": "...",
   "dosage": "...",
   "side_effects": ["..."],
-  "warnings": ["..."]
+  "warnings": ["..."],
+  "generic_substitutes": [
+    { "name": "...", "active_ingredient_match": 100 }
+  ]
 }
 """
 
@@ -121,6 +125,8 @@ Return JSON only.
         for k in required:
             if k not in data:
                 return None, "Groq response missing fields."
+        if "generic_substitutes" not in data:
+            data["generic_substitutes"] = []
         return data, None
     except Exception:
         return None, "Groq returned invalid JSON. Try again."
@@ -467,6 +473,7 @@ def report_pdf():
     dosage = med.get("dosage", "")
     side_effects = med.get("side_effects", [])
     warnings = med.get("warnings", [])
+    generic_substitutes = med.get("generic_substitutes", [])
 
     buffer = BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -518,6 +525,13 @@ def report_pdf():
 
     draw_block("Side Effects", "- " + "\n- ".join(side_effects) if side_effects else "Not available")
     draw_block("Warnings", "- " + "\n- ".join(warnings) if warnings else "Not available")
+
+    if generic_substitutes:
+        subs_text = "\n".join(
+            f"- {s.get('name', '')} (Match: {s.get('active_ingredient_match', '?')}%)"
+            for s in generic_substitutes
+        )
+        draw_block("Affordable Generic Substitutes", subs_text)
 
     y -= 25
     c.setFont("Helvetica-Oblique", 10)
